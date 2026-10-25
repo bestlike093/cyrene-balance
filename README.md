@@ -3,7 +3,7 @@
 常驻桌面的那一只昔涟：余额与今日消费、要你回答的问题、危险操作的确认、当前任务走到哪一步、机器的 CPU / GPU / 内存状态，全部收在她身上。
 
 > 当前版本：**10.4.2**（2026-10-25）
-> 插件 id：`cyrene-balance`｜作者：昔涟｜需要 Cyrene 插件系统（`apiVersion: 1`）
+> 插件 id：`cyrene-balance`｜作者：bestlike093｜需要 Cyrene 插件系统（`apiVersion: 1`）
 
 ---
 
@@ -71,6 +71,19 @@
 - 8 张姿态（`frame-01` ~ `frame-08`）自动轮换，默认 45 秒换一次，也可以手动「换一个姿势」。
 - 5 张情绪特写（平静 / 自信 / 开心 / 俏皮 / 严肃）按状态叠加切换。
 - 44 张去白底小表情嵌在台词气泡里。
+
+**素材来自哪里**
+
+立绘与表情直接取自 Cyrene 客户端自带的素材库（`resources/app.asar` 内），插件只做了去白底、缩放和透明化：
+
+| 素材 | 数量 | Cyrene 内的原始路径（与 [Cyrene-Agent](https://github.com/Playa-Cyrene/Cyrene-Agent) 仓库同名路径一致） |
+| --- | --- | --- |
+| 姿态立绘 `frame-01` ~ `frame-08` | 8 | `assets/ui/cyrene-thinking-loop/` |
+| 情绪特写 `calm` / `confident` / `love-happy` / `playful` / `serious` | 5 | `dist/renderer/stickers/` |
+| 台词小表情 `Airkiss` ~ `weeploud` | 44 | `dist/renderer/stickers/`（原始为 JPG，去白底后转成 256×256 PNG） |
+| 状态面板头像 `mimi` | 1 | `dist/renderer/icons/mimi.png` |
+
+角色「昔涟」与《崩坏：星穹铁道》相关美术归 HoYoverse / 米哈游；Cyrene 使用的 Live2D 模型由 B 站 UP 主 [@是依七哒](https://space.bilibili.com/457683484) 制作。本插件不包含 Live2D 模型，也没有重新绘制这些立绘与表情。
 
 ### 4.2 头顶状态面板
 
@@ -380,7 +393,7 @@ powershell.exe -NoProfile -NonInteractive -Command <固定脚本>
 
 使用本插件前，请完整阅读本节。安装、启用或继续使用即视为你已理解并接受以下内容。
 
-1. **非官方插件。** 本插件由个人开发者「昔涟」维护，与 DeepSeek、Cyrene 官方及其关联公司没有隶属、代理或背书关系。插件名称、界面文案与角色形象仅用于个人桌面美化。
+1. **非官方插件。** 本插件由个人开发者 bestlike093 维护，与 DeepSeek、Cyrene 官方及其关联公司没有隶属、代理或背书关系。插件名称、界面文案与角色形象仅用于个人桌面美化。
 
 2. **数据仅供参考。** 余额、今日消费、今日充值、峰谷时段、额度使用比例均来自 DeepSeek 公开接口或本地推算，可能存在延迟、遗漏、重复计算或误差。**一切以 DeepSeek 官方账单与账户页面为准。** 插件不构成任何财务建议。
 
@@ -398,7 +411,11 @@ powershell.exe -NoProfile -NonInteractive -Command <固定脚本>
 
 9. **合规使用。** 你应遵守所在地法律法规、DeepSeek 服务条款、Cyrene 的使用规范以及所在单位的管理规定。不得将本插件用于绕过审批、规避监管、侵犯他人权益或其他违法用途。
 
-10. **素材与版权。** 插件内立绘、表情、音效等素材仅随插件分发，供个人非商业使用。角色与相关素材的权利归各自权利人所有。请勿拆分、转售、二次分发或用于商业宣传。
+10. **素材与版权。**
+    - 立绘、情绪图、小表情、头像取自 Cyrene 客户端素材库，具体路径见 4.1，与 Cyrene-Agent 开源仓库里的同名文件一致；插件只做了去白底、缩放与透明化。
+    - 角色「昔涟」及《崩坏：星穹铁道》相关美术、名称、设定归 HoYoverse / 米哈游所有。Live2D 模型由 B 站 UP 主 [@是依七哒](https://space.bilibili.com/457683484) 制作，授权范围见 Cyrene-Agent 的 `MODEL_LICENSE.md`；本插件不含该模型。
+    - 音效 `greeting.wav`、`cost-default.wav`、`task-end-a.wav`、`minecraft-exp-orb.wav`、`Ya1.mp3`、`Ya2.mp3` 与气泡 GIF 不来自 Cyrene 素材库，随插件一起分发。`minecraft-exp-orb.wav` 按文件名为《Minecraft》经验球音效，其余音效没有可靠的出处记录。
+    - 以上素材仅随插件分发，供个人非商业使用。请勿拆分、转售、二次分发或用于商业宣传。
 
 11. **随时可能变更。** 插件功能、默认值、数据口径与本声明可能随版本更新调整，不另行单独通知。重大变更会写进版本历史。
 
