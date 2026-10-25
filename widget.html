@@ -62,6 +62,17 @@
     background: linear-gradient(165deg, #fff6f6 0%, #ffe4e7 55%, #ffd4d9 100%);
   }
   .bubble.low::after { background: radial-gradient(circle at 50% 0%, #ffd4d9 0%, #ffd4d9 62%, transparent 68%); }
+  .bubble.over-limit {
+    background: linear-gradient(165deg, #fff0f5 0%, #ffd0de 52%, #ffb1c7 100%);
+    box-shadow: 0 0 0 2px rgba(255, 118, 162, 0.38), 0 8px 20px rgba(255, 118, 162, 0.3);
+    animation: limitPulse 1.8s ease-in-out infinite;
+  }
+  .bubble.over-limit::after { background: radial-gradient(circle at 50% 0%, #ffb1c7 0%, #ffb1c7 62%, transparent 68%); }
+  .over-limit .line { color: #a3254a; font-weight: 600; }
+  @keyframes limitPulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(255, 118, 162, 0.38), 0 8px 20px rgba(255, 118, 162, 0.3); }
+    50% { box-shadow: 0 0 0 4px rgba(255, 118, 162, 0.18), 0 10px 26px rgba(255, 118, 162, 0.42); }
+  }
   .bubble.pop { animation: bubblePop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
   @keyframes bubblePop {
     0% { transform: translateY(-5px) scale(0.9); }
@@ -368,10 +379,22 @@
       "钱包君在喊饿了，{total} 元",
       "就剩 {total} 元了，要省着点用呀",
     ],
-    overBudget: [
-      "今天已经用了 {spent} 元，超过预算咯",
-      "预算花超啦，今天 {spent} 元",
-      "今天花得有点快，{spent} 元了",
+    overLimit: [
+      "⚠ 今天已经用掉 {spent} 元，超过 {limit} 元额度啦",
+      "额度用超了！今天 {spent} 元 / 额度 {limit} 元",
+      "额度 {limit} 元已经用完，今天用了 {spent} 元",
+      "别再点了呀，今天的 {limit} 元额度已经超了",
+    ],
+    today: [
+      "今天用了 {spent} 元 / 额度 {limit} 元，还剩 {remain}",
+      "额度已经用掉 {ratio}%，今天 {spent} 元",
+      "今日账本：{spent} / {limit} 元",
+      "还剩 {remain} 元额度，今天用了 {spent} 元",
+    ],
+    balanceOnly: [
+      "余额 {total} 元",
+      "账户里还有 {total} 元",
+      "小金库：{total} 元",
     ],
   };
 
@@ -410,13 +433,20 @@
 
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function fill(t, d) {
+    const spent = Number(d.spent) || 0;
+    const limit = Number(d.budget) || 0;
     return t
       .replace("{total}", Number(d.total).toFixed(2))
-      .replace("{spent}", Number(d.spent).toFixed(2))
+      .replace("{spent}", spent.toFixed(2))
+      .replace("{limit}", limit > 0 ? limit.toFixed(2) : "—")
+      .replace("{remain}", limit > 0 ? Math.max(0, limit - spent).toFixed(2) : "—")
+      .replace("{ratio}", limit > 0 ? String(Math.round((spent / limit) * 100)) : "—")
       .replace("{peak}", d.peak && d.peak.short ? d.peak.short : "谷");
   }
   function chooseLine(d) {
-    if (d.overBudget) return fill(pick(LINES.overBudget), d);
+    if (CONFIG.bubbleMode === "today") return fill(pick(LINES.today), d);
+    if (CONFIG.bubbleMode === "balance") return fill(pick(LINES.balanceOnly), d);
+    if (d.overBudget) return fill(pick(LINES.overLimit), d);
     if (d.low) return fill(pick(LINES.low), d);
     return fill(pick(LINES.normal), d);
   }
@@ -577,13 +607,25 @@
       presentTalk(d.error || "查询失败", "serious", "sad");
       return;
     }
-    rollTo(d.total);
-
+    const mode = CONFIG.bubbleMode;
     const spent = Number(d.spent) || 0;
+    const limit = Number(d.budget) || 0;
     const recharge = Number(d.recharge) || 0;
-    let meta = "今天用掉 " + spent.toFixed(2) + " 元";
-    if (recharge > 0) meta += " · 充入 " + recharge.toFixed(2);
-    if (d.overBudget) meta = "已超预算 · 用掉 " + spent.toFixed(2);
+    const remain = limit > 0 ? Math.max(0, limit - spent) : 0;
+
+    rollTo(mode === "today" ? spent : d.total);
+
+    let meta;
+    if (mode === "today") {
+      meta = limit > 0 ? "额度 " + limit.toFixed(2) + " · 还剩 " + remain.toFixed(2) : "今日额度还没设置";
+    } else if (mode === "balance") {
+      meta = "今日用掉 " + spent.toFixed(2) + " 元";
+    } else {
+      meta = "今天用掉 " + spent.toFixed(2) + " 元";
+      if (recharge > 0) meta += " · 充入 " + recharge.toFixed(2);
+      if (d.overBudget) meta = "已超额度 · 用掉 " + spent.toFixed(2);
+      else if (limit > 0) meta = "今天 " + spent.toFixed(2) + " / " + limit.toFixed(2);
+    }
     metaEl.textContent = meta;
 
     peakEl.textContent = d.peak && d.peak.short ? d.peak.short : "谷";
@@ -594,18 +636,22 @@
     const lowTurn = low && !wasLow;
     const overTurn = over && !wasOverBudget && !lowTurn;
     if (lowTurn || overTurn) {
-      playSound("assets/task-end-a.wav", 0.5);
-      const text = lowTurn
-        ? fill(pick(LINES.low), d)
-        : "今天已经用掉 " + spent.toFixed(2) + " 元，超过 " + (Number(d.budget) || 0).toFixed(2) + " 元预算啦。";
+      if (overTurn) {
+        playSound("assets/task-end-a.wav", 0.62);
+        setTimeout(() => playSound("assets/Ya2.mp3", 0.5), 320);
+      } else {
+        playSound("assets/task-end-a.wav", 0.5);
+      }
+      const text = lowTurn ? fill(pick(LINES.low), d) : fill(pick(LINES.overLimit), d);
       infoLine.textContent = text;
-      setFace("serious", 2600);
+      setFace("serious", 3200);
       showSticker("low");
-      showPanel(infoBubble, panelMs());
+      showPanel(infoBubble, overTurn ? Math.max(6000, panelMs()) : panelMs());
     }
     wasLow = low;
     wasOverBudget = over;
     infoBubble.classList.toggle("low", low);
+    infoBubble.classList.toggle("over-limit", over);
 
     if (activeBubble === infoBubble && infoBubble.classList.contains("show")) {
       const text = chooseLine(d);
@@ -691,6 +737,19 @@
     else if (type === "zoom-in") changeScale(1);
     else if (type === "zoom-out") changeScale(-1);
     else if (type === "refresh") load(true);
+    else if (type === "custom-limit") {
+      const current = lastData && Number(lastData.budget) > 0 ? String(Number(lastData.budget)) : "30";
+      const input = window.prompt("今日额度上限（元，填 0 表示关闭提醒）", current);
+      if (input === null) return;
+      const value = Number(input);
+      if (!Number.isFinite(value) || value < 0) return;
+      ipcRenderer
+        .invoke(CH + "setLimit", value)
+        .then((res) => {
+          if (res && res.payload) render(res.payload);
+        })
+        .catch(() => {});
+    }
     else if (type === "close") ipcRenderer.invoke(CH + "close").catch(() => {});
   });
 
@@ -720,6 +779,7 @@
     mountSticker();
     startRotate();
     schedulePose();
+    if (lastData) render(lastData);
   }
 
   /* ---------- 数据 / 缩放 ---------- */
@@ -768,7 +828,7 @@
   }, 15000);
 
   setInterval(() => {
-    if (CONFIG.bubbleMode === "info") return;
+    if (["info", "today", "balance"].includes(CONFIG.bubbleMode)) return;
     if (!lastData) return;
     const q = pick(QUESTIONS);
     presentTalk(q.t, q.face, q.mood);
