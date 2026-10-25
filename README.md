@@ -2,7 +2,7 @@
 
 常驻桌面的那一只昔涟：余额与今日消费、要你回答的问题、危险操作的确认、当前任务走到哪一步、机器的 CPU / GPU / 内存状态，全部收在她身上。
 
-> 当前版本：**10.4.2**（2026-10-25）
+> 当前版本：**10.4.3**（2026-10-25）
 > 插件 id：`cyrene-balance`｜作者：bestlike093｜需要 Cyrene 插件系统（`apiVersion: 1`）
 
 ---
@@ -11,7 +11,7 @@
 
 第一次安装照这五步走，就能看到桌宠并开始用：
 
-1. **装插件**：下载 `cyrene-balance-10.4.2.zip` → Cyrene **设置 → 插件 → 从本地安装** → 选中 ZIP。压缩包里已经带 `cyrene-balance/` 顶层目录，不要再手动套一层。
+1. **装插件**：下载 `cyrene-balance-10.4.3.zip` → Cyrene **设置 → 插件 → 从本地安装** → 选中 ZIP。压缩包里已经带 `cyrene-balance/` 顶层目录，不要再手动套一层。
 2. **启用**：在插件列表里打开「昔涟 · 桌面桌宠」，立绘出现在桌面右下角，默认跟着 Cyrene 主窗口。
 3. **填 Key**：右键立绘 →「打开设置」→ 填 DeepSeek API Key；也可以直接说「把 DeepSeek Key 设成 sk-…」。Cyrene 里已有 DeepSeek 模型配置的话，插件会只读复用，不填也能先看到余额。
 4. **设额度**：右键 →「余额与额度」→ 设余额提醒阈值（默认 20 元）与今日额度（0 表示关闭）。
@@ -39,10 +39,10 @@
 
 ## 2. 安装与启用
 
-1. 下载压缩包：[zips/cyrene-balance-10.4.2.zip](https://github.com/bestlike093/cyrene-balance/raw/main/zips/cyrene-balance-10.4.2.zip)（约 20.2 MB）。SHA-256：`16b0bc11bf8fca6f64b7363ff6233d52c2f2d18ebe834784669e249d186ff3f8`。下载后可以这样核对：
+1. 下载压缩包：[zips/cyrene-balance-10.4.3.zip](https://github.com/bestlike093/cyrene-balance/raw/main/zips/cyrene-balance-10.4.3.zip)（约 20.2 MB）。SHA-256 以 [v10.4.3 Release](https://github.com/bestlike093/cyrene-balance/releases/tag/v10.4.3) 页显示的为准。下载后可以这样核对：
 
    ```powershell
-   Get-FileHash .\cyrene-balance-10.4.2.zip -Algorithm SHA256
+   Get-FileHash .\cyrene-balance-10.4.3.zip -Algorithm SHA256
    ```
 2. 在 Cyrene 的 **设置 → 插件** 里选择「从本地安装」，选中 ZIP；插件目录里必须保留 `cyrene-balance/` 这一层。
 3. 安装完成后在插件列表里启用 `昔涟 · 桌面桌宠`。
@@ -473,6 +473,12 @@ powershell.exe -NoProfile -NonInteractive -Command <固定脚本>
 ---
 
 ## 12. 版本历史
+
+**10.4.3**
+
+- 新增托盘图标：左键单击一键归位，右键可显示 / 隐藏、重新加载、刷新余额
+- 归位前会先还原最小化的主窗口，再把桌宠放回当前显示器右下角；屏幕坐标越界也会夹回来
+- 渲染进程异常退出时自动重载，减少「桌宠突然不见了」的情况
 
 **10.4.2**
 
