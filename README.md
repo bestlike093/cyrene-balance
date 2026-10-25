@@ -1,5 +1,13 @@
 # 昔涟 · 余额桌宠（cyrene-balance）
 
+## 下载安装
+
+到 [Releases](https://github.com/bestlike093/cyrene-balance/releases/latest) 下载安装包，在 Cyrene 的「设置 → 插件 → 从文件安装」里选中即可。
+
+| 安装包 | 大小 | SHA-256 |
+| --- | --- | --- |
+| `cyrene-balance-9.5.1.zip` | 20.18 MB | `46b264a90a48d4c482f8fda2860c56dd545e92bb42e9109c52fdfc79b4ea88f3` |
+
 把 DeepSeek API 余额做成一只常驻桌面的透明立绘桌宠：立绘可以拖到屏幕任意位置，气泡轮播余额信息和昔涟的台词，余额告急时换表情提醒你。
 
 ## 功能
