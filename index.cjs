@@ -673,7 +673,12 @@ function keepInsideMain() {
     const maxX = size.x + size.w - b.width - margin;
     const maxY = size.y + size.h - b.height - margin;
     x = Math.min(Math.max(x, minX), Math.max(minX, maxX));
-    y = Math.min(Math.max(y, minY), Math.max(minY, maxY));
+    if (b.height > size.h - margin * 2) {
+      // 挂件比主窗口还高：底边对齐，先保住状态栏不被挤出可视区
+      y = size.y + size.h - b.height - margin;
+    } else {
+      y = Math.min(Math.max(y, minY), Math.max(minY, maxY));
+    }
     if (x !== b.x || y !== b.y) win.setPosition(Math.round(x), Math.round(y));
   } catch {
     /* 忽略 */
