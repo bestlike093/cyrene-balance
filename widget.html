@@ -24,7 +24,9 @@
   }
   #shell {
     width: 203px;
-    height: 100%;
+    /* 窗口尺寸已经按 scale 缩过一次，这里再取 100% 就成了二次缩放，
+       缩小后内容会被压到窗口顶部之外，气泡整块被裁掉 */
+    height: calc(100% / var(--scale, 1));
     transform: scale(var(--scale));
     transform-origin: top left;
     position: relative;
