@@ -1190,7 +1190,8 @@ async function openWidget() {
     return;
   }
   const settings = await getSettings();
-  const scale = settings.widgetScale || 1;
+  // 挂件固定尺寸，不再按比例整体缩放
+  const scale = 1;
   widgetScaleCache = scale;
   const width = Math.round(widgetWidthCache * scale);
   const baseHeight = settings.hudEnabled ? WIDGET_HEIGHT + 78 : WIDGET_HEIGHT;
@@ -2005,8 +2006,9 @@ module.exports = {
       return { limit, payload: await buildWidgetPayload() };
     });
 
-    ctx.registerIpc("setScale", async (value) => {
-      const scale = Math.min(1.5, Math.max(0.75, Number(value) || 1));
+    ctx.registerIpc("setScale", async () => {
+      // 固定 100%，缩放档位不再生效
+      const scale = 1;
       const settings = await getSettings();
       settings.widgetScale = scale;
       widgetScaleCache = scale;
@@ -2644,16 +2646,6 @@ module.exports = {
                   })();
                 },
               },
-            ],
-          },
-          { type: "separator" },
-          {
-            label: "视图",
-            submenu: [
-              { label: "放大", click: () => send("zoom-in") },
-              { label: "缩小", click: () => send("zoom-out") },
-              { type: "separator" },
-              { label: "当前缩放 " + Math.round((widgetScaleCache || 1) * 100) + "%", enabled: false },
             ],
           },
           { type: "separator" },

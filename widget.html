@@ -1532,8 +1532,9 @@
   }
 
   function applyScale(value) {
-    scale = value;
-    document.documentElement.style.setProperty("--scale", String(value));
+    // 挂件固定 100%，不再按比例缩放
+    scale = 1;
+    document.documentElement.style.setProperty("--scale", "1");
   }
 
   /* ---------- 声音 ---------- */
