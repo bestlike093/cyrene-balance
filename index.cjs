@@ -1216,14 +1216,14 @@ async function openWidget() {
     },
   });
   try { win.setAlwaysOnTop(true, "floating"); } catch { /* 忽略 */ }
-  // 常驻置顶：只在置顶标志被别的程序挤掉时补一次，平时不碰窗口，
-  // 透明窗口每次重绘都可能闪一圈白边
+  // 常驻置顶：别的程序提到 TOPMOST 之上时，定时把桌宠提回最前
   const keepTopTimer = setInterval(() => {
     if (!win || win.isDestroyed()) return;
     try {
-      if (!win.isAlwaysOnTop()) win.setAlwaysOnTop(true, "floating");
+      win.setAlwaysOnTop(true, "floating");
+      win.moveTop();
     } catch { /* 忽略 */ }
-  }, 5000);
+  }, 2000);
   win.loadFile(path.join(__dirname, "widget.html"));
   win.webContents.on("did-finish-load", () => {
     pushPetTodo();
