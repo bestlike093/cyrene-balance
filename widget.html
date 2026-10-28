@@ -990,7 +990,8 @@
       heightTimer = null;
       const shown = [taskBubble, infoBubble, talkBubble].find((b) => b.classList.contains("show"));
       const bubbleH = shown ? shown.offsetHeight + 8 : 0;
-      const h = Math.max(250, Math.min(760, Math.round(4 + bubbleH + 6 + 180 + bottom + 6)));
+      // 顶部留 18px：气泡阴影向上扩散约 11px，只留 4px 会被窗口边缘裁掉一截
+      const h = Math.max(250, Math.min(760, Math.round(18 + bubbleH + 6 + 180 + bottom + 6)));
       if (Math.abs(h - lastHeight) < 6) return;
       lastHeight = h;
       ipcRenderer.invoke(CH + "set-widget-height", h).catch(() => {});
