@@ -169,10 +169,7 @@
     /* 台词字号独立，不跟着余额字号缩放 */
     font-size: var(--talk-fs, 12px);
     line-height: 1.45;
-    /* 多行时把每行长度匀开，避免第一行塞满、第二行只剩两三个字 */
-    text-wrap: balance;
-    max-height: calc(1.45em * 6);
-    overflow: hidden;
+    /* 跟着文字自然长高，不再按行数截断 */
     word-break: break-word;
   }
 
