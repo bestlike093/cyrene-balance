@@ -27,7 +27,7 @@ const HISTORY_DAYS = 7;
 const SETTINGS_KEY = "settings";
 const LEDGER_KEY = "ledger";
 
-const WIDGET_WIDTH = 240;
+const WIDGET_WIDTH = 203;
 const WIDGET_HEIGHT = 250;
 
 /** 高峰时段（北京时间，分钟） */
@@ -62,7 +62,6 @@ const defaultSettings = () => ({
   followMain: true,
   widgetX: null,
   widgetY: null,
-  stickerEnabled: false,
   stickerDuration: 3.4,
   stickerPlacement: "inside",
   stickerSize: 42,
@@ -113,7 +112,6 @@ async function getSettings() {
       followMain: raw.followMain !== false,
       widgetX: Number.isFinite(Number(raw.widgetX)) ? Number(raw.widgetX) : null,
       widgetY: Number.isFinite(Number(raw.widgetY)) ? Number(raw.widgetY) : null,
-      stickerEnabled: raw.stickerEnabled === true,
       stickerDuration:
         Number.isFinite(Number(raw.stickerDuration)) &&
         Number(raw.stickerDuration) >= 0.8 &&
@@ -137,8 +135,7 @@ async function getSettings() {
       bubbleMode: ["rotate", "info", "talk", "today", "balance"].includes(raw.bubbleMode)
         ? raw.bubbleMode
         : "rotate",
-      // 气泡固定在立绘头顶，历史设置里的 middle / bottom 不再生效
-      bubblePlace: "top",
+      bubblePlace: ["top", "middle", "bottom"].includes(raw.bubblePlace) ? raw.bubblePlace : "top",
       bubbleFont: [0.8, 1, 1.3, 1.6].includes(Number(raw.bubbleFont)) ? Number(raw.bubbleFont) : 1,
       talkFont: [10, 12, 14, 16, 18].includes(Number(raw.talkFont)) ? Number(raw.talkFont) : 12,
       rotateSec:
@@ -673,12 +670,7 @@ function keepInsideMain() {
     const maxX = size.x + size.w - b.width - margin;
     const maxY = size.y + size.h - b.height - margin;
     x = Math.min(Math.max(x, minX), Math.max(minX, maxX));
-    if (b.height > size.h - margin * 2) {
-      // 挂件比主窗口还高：底边对齐，先保住状态栏不被挤出可视区
-      y = size.y + size.h - b.height - margin;
-    } else {
-      y = Math.min(Math.max(y, minY), Math.max(minY, maxY));
-    }
+    y = Math.min(Math.max(y, minY), Math.max(minY, maxY));
     if (x !== b.x || y !== b.y) win.setPosition(Math.round(x), Math.round(y));
   } catch {
     /* 忽略 */
@@ -844,7 +836,9 @@ function recenterPet(options) {
     win.setPosition(Math.round(finalX), Math.round(finalY));
     if (!win.isVisible()) win.showInactive();
     try { win.moveTop(); } catch { /* 忽略 */ }
-    try { win.setAlwaysOnTop(true, "floating"); } catch { /* 忽略 */ }
+    if (!followMode) {
+      try { win.setAlwaysOnTop(true, "floating"); } catch { /* 忽略 */ }
+    }
     if (opts.save !== false && !followMode) void saveWidgetPosition();
     petLog("归位 -> " + Math.round(finalX) + "," + Math.round(finalY));
     return true;
@@ -937,6 +931,8 @@ let widgetWidthCache = WIDGET_WIDTH;
 let widgetDragging = false;
 let pendingWidgetHeight = null;
 let dragFreezeTimer = null;
+let dragFollowTimer = null;
+let dragFollowOffset = null;
 
 function cpuUsagePercent() {
   const now = os.cpus();
@@ -1116,6 +1112,96 @@ function stopHud() {
   hudTimer = null;
 }
 
+/**
+ * 拖动跟随：主进程直接读光标的屏幕坐标。
+ * 渲染进程的差量要经过 IPC 和帧调度，窗口移动还会反过来扰动采样，
+ * 一快一慢就表现成「鼠标和立绘分家」。这里用「按下时光标 − 窗口原点」当固定偏移，
+ * 之后每帧把窗口放到「光标 − 偏移」，跟手且不累积误差。
+ */
+function stopDragFollow() {
+  if (dragFollowTimer) {
+    clearInterval(dragFollowTimer);
+    dragFollowTimer = null;
+  }
+  dragFollowOffset = null;
+  if (pendingWidgetHeight != null) {
+    const h = pendingWidgetHeight;
+    pendingWidgetHeight = null;
+    setWidgetHeight(h);
+  }
+}
+
+function startDragFollow(payload) {
+  if (!win || win.isDestroyed()) return;
+  let screenApi = null;
+  try {
+    screenApi = require("electron").screen;
+  } catch {
+    screenApi = null;
+  }
+  if (!screenApi) return;
+  const bounds = win.getBounds();
+  const px = Number(payload && payload.screenX);
+  const py = Number(payload && payload.screenY);
+  let originX = Number.isFinite(px) ? px : null;
+  let originY = Number.isFinite(py) ? py : null;
+  if (originX == null || originY == null) {
+    try {
+      const point = screenApi.getCursorScreenPoint();
+      originX = point.x;
+      originY = point.y;
+    } catch {
+      originX = bounds.x;
+      originY = bounds.y;
+    }
+  }
+  dragFollowOffset = { x: originX - bounds.x, y: originY - bounds.y };
+  if (dragFollowTimer) clearInterval(dragFollowTimer);
+  dragFollowTimer = setInterval(() => {
+    if (!win || win.isDestroyed() || !dragFollowOffset) {
+      stopDragFollow();
+      return;
+    }
+    let point = null;
+    try {
+      point = screenApi.getCursorScreenPoint();
+    } catch {
+      return;
+    }
+    if (!point) return;
+    const current = win.getBounds();
+    const x = Math.round(point.x - dragFollowOffset.x);
+    const y = Math.round(point.y - dragFollowOffset.y);
+    if (x === current.x && y === current.y) return;
+    try {
+      // 拖动期间不夹回主窗口，否则贴边会被按住、看着像鼠标飘走；松手后再归位
+      win.setPosition(x, y);
+    } catch {
+      /* 忽略 */
+    }
+  }, 16);
+}
+
+/**
+ * 把「窗口逻辑尺寸」回传给渲染进程。
+ * 页面里 #shell 必须先按逻辑尺寸铺满、再整体 scale，才不会多缩一层；
+ * 逻辑尺寸只由窗口像素 ÷ scale 决定，交给主进程算就不会被 resize 时序带偏。
+ */
+function notifyWidgetViewport() {
+  if (!win || win.isDestroyed()) return;
+  try {
+    const bounds = win.getBounds();
+    const s = widgetScaleCache || 1;
+    win.webContents.send("balance-widget-viewport", {
+      width: bounds.width / s,
+      height: bounds.height / s,
+      scale: s,
+    });
+  } catch {
+    /* 忽略 */
+  }
+}
+
 function setWidgetHeight(cssHeight) {
   if (!win || win.isDestroyed()) return;
   // 拖动期间先冻结窗口高度，松手后再应用，避免气泡相对立绘上下跳
@@ -1134,6 +1220,7 @@ function setWidgetHeight(cssHeight) {
     { x: bounds.x, y: Math.round(bottom - height), width: bounds.width, height },
     false,
   );
+  notifyWidgetViewport();
   keepInsideMain();
 }
 
@@ -1151,6 +1238,7 @@ function setWidgetWidth(cssWidth) {
     { x: Math.round(right - width), y: bounds.y, width, height: bounds.height },
     false,
   );
+  notifyWidgetViewport();
   keepInsideMain();
 }
 
@@ -1159,13 +1247,14 @@ function resizeWidget(scale) {
   const width = Math.round(widgetWidthCache * scale);
   const height = Math.round((widgetHeightCache || WIDGET_HEIGHT) * scale);
   const bounds = win.getBounds();
-  // 底边 + 水平中心为锚点：缩小/放大时角色留在原地，不会被推出可视区
-  const centerX = bounds.x + bounds.width / 2;
+  // 右下角为锚点：立绘本来就锚在窗口右侧，缩放时角色不会横移，底边也不会顶出屏幕
+  const right = bounds.x + bounds.width;
   const bottom = bounds.y + bounds.height;
   win.setBounds(
-    { x: Math.round(centerX - width / 2), y: Math.round(bottom - height), width, height },
+    { x: Math.round(right - width), y: Math.round(bottom - height), width, height },
     false,
   );
+  notifyWidgetViewport();
   keepInsideMain();
 }
 
@@ -1190,8 +1279,7 @@ async function openWidget() {
     return;
   }
   const settings = await getSettings();
-  // 挂件固定尺寸，不再按比例整体缩放
-  const scale = 1;
+  const scale = settings.widgetScale || 1;
   widgetScaleCache = scale;
   const width = Math.round(widgetWidthCache * scale);
   const baseHeight = settings.hudEnabled ? WIDGET_HEIGHT + 78 : WIDGET_HEIGHT;
@@ -1211,7 +1299,7 @@ async function openWidget() {
     maximizable: false,
     minimizable: false,
     fullscreenable: false,
-    alwaysOnTop: true,
+    alwaysOnTop: !followMode,
     skipTaskbar: true,
     hasShadow: false,
     show: false,
@@ -1224,18 +1312,13 @@ async function openWidget() {
       backgroundThrottling: false,
     },
   });
-  try { win.setAlwaysOnTop(true, "floating"); } catch { /* 忽略 */ }
-  // 常驻置顶：别的程序提到 TOPMOST 之上时，定时把桌宠提回最前
-  const keepTopTimer = setInterval(() => {
-    if (!win || win.isDestroyed()) return;
-    try {
-      win.setAlwaysOnTop(true, "floating");
-      win.moveTop();
-    } catch { /* 忽略 */ }
-  }, 2000);
+  if (!followMode) {
+    try { win.setAlwaysOnTop(true, "floating"); } catch { /* 忽略 */ }
+  }
   win.loadFile(path.join(__dirname, "widget.html"));
   win.webContents.on("did-finish-load", () => {
     pushPetTodo();
+    notifyWidgetViewport();
     startHud();
     if (petMode === "card" && petCardPayload) {
       try {
@@ -1273,12 +1356,13 @@ async function openWidget() {
   });
   win.on("closed", () => {
     if (moveTimer) clearTimeout(moveTimer);
-    if (keepTopTimer) clearInterval(keepTopTimer);
+    stopDragFollow();
     win = null;
   });
 }
 
 function closeWidget() {
+  stopDragFollow();
   if (win && !win.isDestroyed()) win.destroy();
   win = null;
   stopHud();
@@ -1389,6 +1473,7 @@ function applyPetSize(expanded) {
       /* 忽略 */
     }
     win.setBounds({ x, y, width, height });
+    notifyWidgetViewport();
   } catch (error) {
     petLog("调整窗口尺寸失败：" + ((error && error.message) || error));
   }
@@ -1967,7 +2052,6 @@ module.exports = {
     ctx.registerIpc("config", async () => {
       const settings = await getSettings();
       return {
-        stickerEnabled: settings.stickerEnabled,
         stickerDuration: settings.stickerDuration,
         stickerPlacement: settings.stickerPlacement,
         stickerSize: settings.stickerSize,
@@ -2006,9 +2090,8 @@ module.exports = {
       return { limit, payload: await buildWidgetPayload() };
     });
 
-    ctx.registerIpc("setScale", async () => {
-      // 固定 100%，缩放档位不再生效
-      const scale = 1;
+    ctx.registerIpc("setScale", async (value) => {
+      const scale = Math.min(1.5, Math.max(0.75, Number(value) || 1));
       const settings = await getSettings();
       settings.widgetScale = scale;
       widgetScaleCache = scale;
@@ -2042,20 +2125,17 @@ module.exports = {
         dragFreezeTimer = null;
       }
       if (dragging) {
+        startDragFollow(payload);
         // 兜底：前端漏发结束信号时，15 秒后自动解冻
         dragFreezeTimer = setTimeout(() => {
           dragFreezeTimer = null;
           widgetDragging = false;
-          if (pendingWidgetHeight != null) {
-            const h = pendingWidgetHeight;
-            pendingWidgetHeight = null;
-            setWidgetHeight(h);
-          }
+          stopDragFollow();
+          try { keepInsideMain(); } catch { /* 忽略 */ }
         }, 15000);
-      } else if (pendingWidgetHeight != null) {
-        const h = pendingWidgetHeight;
-        pendingWidgetHeight = null;
-        setWidgetHeight(h);
+      } else {
+        stopDragFollow();
+        try { keepInsideMain(); } catch { /* 忽略 */ }
       }
       return true;
     });
@@ -2646,6 +2726,16 @@ module.exports = {
                   })();
                 },
               },
+            ],
+          },
+          { type: "separator" },
+          {
+            label: "视图",
+            submenu: [
+              { label: "放大", click: () => send("zoom-in") },
+              { label: "缩小", click: () => send("zoom-out") },
+              { type: "separator" },
+              { label: "当前缩放 " + Math.round((widgetScaleCache || 1) * 100) + "%", enabled: false },
             ],
           },
           { type: "separator" },

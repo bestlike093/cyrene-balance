@@ -23,15 +23,14 @@
     user-select: none;
   }
   #shell {
-    /* 跟着窗口宽度走：气泡设了具体宽度时窗口会变宽，固定值会让内容偏左 */
-    width: 100%;
-    /* 高度由 fitSprite 按布局尺寸写成 px；窗口再按 scale 缩，
-       用百分比的话窗口一缩内容会跟着再缩一次 */
-    height: 100%;
+    /* 窗口像素尺寸 = CSS 尺寸 × scale。这里先按「窗口逻辑尺寸」铺满再整体缩放：
+       100% 会被窗口尺寸包含，直接乘 scale 等于缩两次——放大裁掉底部状态栏，
+       缩小又让内容只占窗口上半截。用 100% / scale 还原成逻辑尺寸后就一一对上了。 */
+    width: calc(100% / var(--scale));
+    height: calc(100% / var(--scale));
     transform: scale(var(--scale));
     transform-origin: top left;
     position: relative;
-    transition: transform 0.16s ease-out;
   }
 
   /* ---------- 气泡通用 ---------- */
@@ -170,7 +169,10 @@
     /* 台词字号独立，不跟着余额字号缩放 */
     font-size: var(--talk-fs, 12px);
     line-height: 1.45;
-    /* 跟着文字自然长高，不再按行数截断 */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
     word-break: break-word;
   }
 
@@ -715,7 +717,7 @@
     schedulePose();
     const pose = POSES[poseIndex];
     talkLine.textContent = pick(pose.lines);
-    showPanel(talkBubble, Infinity);
+    showPanel(talkBubble, panelMs());
     showSticker(pose.mood);
     sprite.classList.remove("showing-face");
     Object.values(FACES).forEach((f) => f.classList.remove("on"));
@@ -852,7 +854,6 @@
 
   /* ---------- 用户配置（右键菜单可调） ---------- */
   const CONFIG = {
-    stickerEnabled: false,
     stickerDuration: 3.4,
     stickerPlacement: "inside",
     stickerSize: 42,
@@ -894,15 +895,10 @@
   let lastBubbleWindowWidth = 0;
 
   function applySizes() {
-    // 字号一旦是 0，气泡会只剩 padding、台词整段看不见，这里兜住下限
-    const bubbleFs = Math.max(0.6, Math.min(3, Number(CONFIG.bubbleFont) || 1));
-    const talkFs = Math.max(9, Math.min(40, Number(CONFIG.talkFont) || 12));
-    const taskFs = Math.max(9, Math.min(40, Number(CONFIG.taskFont) || 12));
-    const stickerSize = Math.max(16, Math.min(120, Number(CONFIG.stickerSize) || 42));
-    document.documentElement.style.setProperty("--fs", String(bubbleFs));
-    document.documentElement.style.setProperty("--talk-fs", talkFs + "px");
-    document.documentElement.style.setProperty("--sticker-size", stickerSize + "px");
-    document.documentElement.style.setProperty("--task-fs", taskFs + "px");
+    document.documentElement.style.setProperty("--fs", String(CONFIG.bubbleFont));
+    document.documentElement.style.setProperty("--talk-fs", CONFIG.talkFont + "px");
+    document.documentElement.style.setProperty("--sticker-size", CONFIG.stickerSize + "px");
+    document.documentElement.style.setProperty("--task-fs", Number(CONFIG.taskFont) + "px");
     document.documentElement.style.setProperty("--task-list-h", Number(CONFIG.taskListHeight) + "px");
 
     const bubbleW = Math.max(0, Math.min(1400, Number(CONFIG.bubbleWidth) || 0));
@@ -923,7 +919,7 @@
     });
 
     // 气泡要更宽时，窗口一起向左长，不然会被裁掉
-    const cssWidth = Math.max(240, bubbleW > 0 ? bubbleW + 6 : 240);
+    const cssWidth = Math.max(203, bubbleW > 0 ? bubbleW + 6 : 203);
     if (Math.abs(cssWidth - lastBubbleWindowWidth) >= 2) {
       lastBubbleWindowWidth = cssWidth;
       ipcRenderer.invoke(CH + "set-widget-width", cssWidth).catch(() => {});
@@ -935,12 +931,6 @@
 
   /* ---------- 贴纸挂载：气泡内 / 窗口角落 ---------- */
   function mountSticker() {
-    if (!CONFIG.stickerEnabled) {
-      sticker.classList.remove("on");
-      sticker.style.display = "none";
-      return;
-    }
-    sticker.style.display = "";
     const place = CONFIG.stickerPlacement;
     const inside = place === "inside";
     const parent = inside ? talkRow : shell;
@@ -955,7 +945,6 @@
   }
 
   function showSticker(mood) {
-    if (!CONFIG.stickerEnabled) return;
     const pool = EMOJI[mood] || EMOJI.normal;
     sticker.src = "assets/emoji/" + pick(pool);
     sticker.classList.remove("on");
@@ -1001,10 +990,7 @@
       heightTimer = null;
       const shown = [taskBubble, infoBubble, talkBubble].find((b) => b.classList.contains("show"));
       const bubbleH = shown ? shown.offsetHeight + 8 : 0;
-      // 顶部留 18px：气泡阴影向上扩散约 11px，只留 4px 会被窗口边缘裁掉一截
-      const h = Math.max(250, Math.min(760, Math.round(18 + bubbleH + 6 + 180 + bottom + 6)));
-      // 布局高度写死成 px，窗口按 scale 缩时内容不会跟着二次缩放
-      shell.style.height = h + "px";
+      const h = Math.max(250, Math.min(760, Math.round(4 + bubbleH + 6 + 180 + bottom + 6)));
       if (Math.abs(h - lastHeight) < 6) return;
       lastHeight = h;
       ipcRenderer.invoke(CH + "set-widget-height", h).catch(() => {});
@@ -1098,27 +1084,16 @@
     [infoBubble, talkBubble, taskBubble].forEach((b) => {
       if (b !== el) b.classList.remove("show", "pop");
     });
-    const wasShown = el.classList.contains("show");
     activeBubble = el;
     el.classList.add("show");
-    // 已经挂着的面板不再重播入场动画，换文案时不会闪一下
-    if (!wasShown) {
-      el.classList.remove("pop");
-      void el.offsetWidth;
-      el.classList.add("pop");
-    }
-    if (bubbleTimer) {
-      clearTimeout(bubbleTimer);
-      bubbleTimer = null;
-    }
-    // ms 传 0 或 Infinity 表示常驻，不自动收起
-    const sticky = ms === Infinity || !(Number(ms) > 0);
-    if (!sticky) {
-      bubbleTimer = setTimeout(() => {
-        el.classList.remove("show");
-        fitSprite();
-      }, ms);
-    }
+    el.classList.remove("pop");
+    void el.offsetWidth;
+    el.classList.add("pop");
+    if (bubbleTimer) clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(() => {
+      el.classList.remove("show");
+      fitSprite();
+    }, ms || 5000);
     requestAnimationFrame(() => {
       mountSticker();
       fitSprite();
@@ -1134,14 +1109,14 @@
     if (!force && CONFIG.bubbleMode === "talk") return;
     const text = chooseLine(lastData);
     infoLine.textContent = text;
-    showPanel(infoBubble, Infinity);
+    showPanel(infoBubble, panelMs());
   }
 
   function presentTalk(text, face, mood) {
     const line = text || pick(pick(GROUPS).lines);
     talkLine.textContent = line;
     if (face) setFace(face, 2600);
-    showPanel(talkBubble, Infinity);
+    showPanel(talkBubble, panelMs());
     if (mood) showSticker(mood);
   }
 
@@ -1415,20 +1390,13 @@
     rotateTimer = setInterval(() => {
       if (CONFIG.bubbleMode !== "rotate") return;
       if (!lastData || !lastData.ok) return;
-      if (activeBubble === taskBubble) return;
       rotateTick += 1;
-      // 常驻气泡只在当前面板里换文案，不切换面板，整块不会一闪一闪
-      if (activeBubble === talkBubble) {
-        if (rotateTick % 4 === 0) {
-          const greet = hourLine();
-          presentTalk(greet.t, greet.face, greet.mood);
-        } else {
-          const g = pick(GROUPS);
-          presentTalk(pick(g.lines), g.face, g.mood);
-        }
-      } else {
-        presentInfo(true);
-      }
+      if (rotateTick % 4 === 0) {
+        const greet = hourLine();
+        presentTalk(greet.t, greet.face, greet.mood);
+      } else if (activeBubble === infoBubble) saySomething();
+      else if (activeBubble === taskBubble) return;
+      else presentInfo(true);
     }, gap);
   }
 
@@ -1532,11 +1500,41 @@
     if (infoBubble.classList.contains("show")) fitSprite();
   }
 
-  function applyScale(value) {
-    // 挂件固定 100%，不再按比例缩放
-    scale = 1;
-    document.documentElement.style.setProperty("--scale", "1");
+  /* #shell 的逻辑尺寸只认「窗口像素 ÷ scale」。
+     缩放时不要在这里重算：旧的逻辑尺寸乘上新 scale 正好贴合新窗口，
+     提前拿旧 innerWidth 算反而会记下一个偏大的值，缩到最小就整块歪出去。 */
+  function setShellSize(width, height) {
+    if (!shell) return;
+    const w = Math.round(Number(width) || 0);
+    const h = Math.round(Number(height) || 0);
+    if (w > 0) shell.style.width = w + "px";
+    if (h > 0) shell.style.height = h + "px";
   }
+
+  function syncShellSize() {
+    const s = Number(scale) > 0 ? Number(scale) : 1;
+    setShellSize(window.innerWidth / s, window.innerHeight / s);
+  }
+
+  function applyScale(value) {
+    scale = value;
+    document.documentElement.style.setProperty("--scale", String(value));
+  }
+
+  window.addEventListener("resize", syncShellSize);
+  // 透明无边框窗口连续 setBounds 时 resize 可能被合并掉，
+  // 主进程把「窗口像素 ÷ scale」算好发过来，以它为准。
+  ipcRenderer.on("balance-widget-viewport", (event, viewport) => {
+    if (!viewport) return;
+    if (typeof viewport.scale === "number" && viewport.scale > 0 && viewport.scale !== scale) {
+      applyScale(viewport.scale);
+    }
+    setShellSize(viewport.width, viewport.height);
+  });
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(() => syncShellSize()).observe(document.documentElement);
+  }
+  syncShellSize();
 
   /* ---------- 声音 ---------- */
   function playSound(src, vol) {
@@ -1550,20 +1548,11 @@
   /* ---------- 按压 Q 弹 / 拖拽 / 单击·长按·双击·三击 ---------- */
   let dragging = false;
   let moved = false;
-  let startX = 0, startY = 0, lastX = 0, lastY = 0;
-  let pendingDx = 0, pendingDy = 0, rafPending = false;
+  let startX = 0, startY = 0;
   let pressTimer = null;
   let longPressed = false;
   let tapCount = 0;
   let tapTimer = null;
-
-  function flushMove() {
-    rafPending = false;
-    if (!pendingDx && !pendingDy) return;
-    const dx = pendingDx, dy = pendingDy;
-    pendingDx = 0; pendingDy = 0;
-    ipcRenderer.invoke(CH + "moveBy", { dx, dy }).catch(() => {});
-  }
 
   function expandTasks() {
     if (!taskItems.length) {
@@ -1613,10 +1602,11 @@
     moved = false;
     longPressed = false;
     startX = e.screenX; startY = e.screenY;
-    lastX = e.screenX; lastY = e.screenY;
     sprite.classList.add("pressed");
     playSound("assets/Ya1.mp3", 0.5);
-    ipcRenderer.invoke(CH + "set-dragging", { dragging: true }).catch(() => {});
+    ipcRenderer
+      .invoke(CH + "set-dragging", { dragging: true, screenX: e.screenX, screenY: e.screenY })
+      .catch(() => {});
     try {
       sprite.setPointerCapture(e.pointerId);
       sprite.addEventListener("lostpointercapture", stopDrag, { once: true });
@@ -1635,16 +1625,10 @@
     if (!dragging) return;
     // 兜底：pointerup 丢失时，按键已经松开也要立刻结束拖拽
     if (e.buttons === 0) { stopDrag(); return; }
-    const dx = e.screenX - lastX;
-    const dy = e.screenY - lastY;
-    lastX = e.screenX; lastY = e.screenY;
+    // 位移交给主进程按光标屏幕坐标跟随；这里只判断这次是拖动还是点击
     if (Math.abs(e.screenX - startX) > 4 || Math.abs(e.screenY - startY) > 4) {
       moved = true;
       if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-    }
-    if (moved && (dx || dy)) {
-      pendingDx += dx; pendingDy += dy;
-      if (!rafPending) { rafPending = true; requestAnimationFrame(flushMove); }
     }
   });
 
@@ -1730,7 +1714,6 @@
     try {
       const c = await ipcRenderer.invoke(CH + "config");
       if (c) {
-        if (typeof c.stickerEnabled === "boolean") CONFIG.stickerEnabled = c.stickerEnabled;
         if (typeof c.stickerDuration === "number") CONFIG.stickerDuration = c.stickerDuration;
         if (c.stickerPlacement) CONFIG.stickerPlacement = c.stickerPlacement;
         if (c.bubbleSize) CONFIG.bubbleSize = c.bubbleSize;
@@ -1770,12 +1753,17 @@
     const idx = SCALES.indexOf(scale);
     const next = SCALES[Math.max(0, Math.min(SCALES.length - 1, (idx < 0 ? 2 : idx) + dir))];
     if (next === scale) return;
+    // 先把页面缩放切过去，再让主进程改窗口，避免内容比窗口慢一帧被裁掉
+    applyScale(next);
     try {
       const applied = await ipcRenderer.invoke(CH + "setScale", next);
-      applyScale(typeof applied === "number" ? applied : next);
-    } catch (e) {
-      applyScale(next);
-    }
+      if (typeof applied === "number" && applied !== next) applyScale(applied);
+    } catch (e) {}
+    // 缩放后排版高度会变，重新量一次，保证窗口刚好包住气泡和状态栏
+    setTimeout(() => {
+      syncShellSize();
+      fitSprite();
+    }, 60);
   }
 
   /* ---------- 启动 ---------- */
