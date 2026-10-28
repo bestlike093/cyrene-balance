@@ -851,6 +851,7 @@
 
   /* ---------- 用户配置（右键菜单可调） ---------- */
   const CONFIG = {
+    stickerEnabled: false,
     stickerDuration: 3.4,
     stickerPlacement: "inside",
     stickerSize: 42,
@@ -933,6 +934,12 @@
 
   /* ---------- 贴纸挂载：气泡内 / 窗口角落 ---------- */
   function mountSticker() {
+    if (!CONFIG.stickerEnabled) {
+      sticker.classList.remove("on");
+      sticker.style.display = "none";
+      return;
+    }
+    sticker.style.display = "";
     const place = CONFIG.stickerPlacement;
     const inside = place === "inside";
     const parent = inside ? talkRow : shell;
@@ -947,6 +954,7 @@
   }
 
   function showSticker(mood) {
+    if (!CONFIG.stickerEnabled) return;
     const pool = EMOJI[mood] || EMOJI.normal;
     sticker.src = "assets/emoji/" + pick(pool);
     sticker.classList.remove("on");
@@ -1718,6 +1726,7 @@
     try {
       const c = await ipcRenderer.invoke(CH + "config");
       if (c) {
+        if (typeof c.stickerEnabled === "boolean") CONFIG.stickerEnabled = c.stickerEnabled;
         if (typeof c.stickerDuration === "number") CONFIG.stickerDuration = c.stickerDuration;
         if (c.stickerPlacement) CONFIG.stickerPlacement = c.stickerPlacement;
         if (c.bubbleSize) CONFIG.bubbleSize = c.bubbleSize;

@@ -62,6 +62,7 @@ const defaultSettings = () => ({
   followMain: true,
   widgetX: null,
   widgetY: null,
+  stickerEnabled: false,
   stickerDuration: 3.4,
   stickerPlacement: "inside",
   stickerSize: 42,
@@ -112,6 +113,7 @@ async function getSettings() {
       followMain: raw.followMain !== false,
       widgetX: Number.isFinite(Number(raw.widgetX)) ? Number(raw.widgetX) : null,
       widgetY: Number.isFinite(Number(raw.widgetY)) ? Number(raw.widgetY) : null,
+      stickerEnabled: raw.stickerEnabled === true,
       stickerDuration:
         Number.isFinite(Number(raw.stickerDuration)) &&
         Number(raw.stickerDuration) >= 0.8 &&
@@ -1958,6 +1960,7 @@ module.exports = {
     ctx.registerIpc("config", async () => {
       const settings = await getSettings();
       return {
+        stickerEnabled: settings.stickerEnabled,
         stickerDuration: settings.stickerDuration,
         stickerPlacement: settings.stickerPlacement,
         stickerSize: settings.stickerSize,
