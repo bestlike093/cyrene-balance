@@ -27,7 +27,7 @@ const HISTORY_DAYS = 7;
 const SETTINGS_KEY = "settings";
 const LEDGER_KEY = "ledger";
 
-const WIDGET_WIDTH = 203;
+const WIDGET_WIDTH = 240;
 const WIDGET_HEIGHT = 250;
 
 /** 高峰时段（北京时间，分钟） */

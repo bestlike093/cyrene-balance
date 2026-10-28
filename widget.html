@@ -23,7 +23,7 @@
     user-select: none;
   }
   #shell {
-    width: 203px;
+    width: 240px;
     /* 高度由 fitSprite 按布局尺寸写成 px；窗口再按 scale 缩，
        用百分比的话窗口一缩内容会跟着再缩一次 */
     height: 100%;
@@ -922,7 +922,7 @@
     });
 
     // 气泡要更宽时，窗口一起向左长，不然会被裁掉
-    const cssWidth = Math.max(203, bubbleW > 0 ? bubbleW + 6 : 203);
+    const cssWidth = Math.max(240, bubbleW > 0 ? bubbleW + 6 : 240);
     if (Math.abs(cssWidth - lastBubbleWindowWidth) >= 2) {
       lastBubbleWindowWidth = cssWidth;
       ipcRenderer.invoke(CH + "set-widget-width", cssWidth).catch(() => {});
