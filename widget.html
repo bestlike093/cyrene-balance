@@ -23,7 +23,8 @@
     user-select: none;
   }
   #shell {
-    width: 240px;
+    /* 跟着窗口宽度走：气泡设了具体宽度时窗口会变宽，固定值会让内容偏左 */
+    width: 100%;
     /* 高度由 fitSprite 按布局尺寸写成 px；窗口再按 scale 缩，
        用百分比的话窗口一缩内容会跟着再缩一次 */
     height: 100%;
