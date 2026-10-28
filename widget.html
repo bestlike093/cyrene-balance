@@ -715,7 +715,7 @@
     schedulePose();
     const pose = POSES[poseIndex];
     talkLine.textContent = pick(pose.lines);
-    showPanel(talkBubble, panelMs());
+    showPanel(talkBubble, Infinity);
     showSticker(pose.mood);
     sprite.classList.remove("showing-face");
     Object.values(FACES).forEach((f) => f.classList.remove("on"));
@@ -1082,16 +1082,27 @@
     [infoBubble, talkBubble, taskBubble].forEach((b) => {
       if (b !== el) b.classList.remove("show", "pop");
     });
+    const wasShown = el.classList.contains("show");
     activeBubble = el;
     el.classList.add("show");
-    el.classList.remove("pop");
-    void el.offsetWidth;
-    el.classList.add("pop");
-    if (bubbleTimer) clearTimeout(bubbleTimer);
-    bubbleTimer = setTimeout(() => {
-      el.classList.remove("show");
-      fitSprite();
-    }, ms || 5000);
+    // 已经挂着的面板不再重播入场动画，换文案时不会闪一下
+    if (!wasShown) {
+      el.classList.remove("pop");
+      void el.offsetWidth;
+      el.classList.add("pop");
+    }
+    if (bubbleTimer) {
+      clearTimeout(bubbleTimer);
+      bubbleTimer = null;
+    }
+    // ms 传 0 或 Infinity 表示常驻，不自动收起
+    const sticky = ms === Infinity || !(Number(ms) > 0);
+    if (!sticky) {
+      bubbleTimer = setTimeout(() => {
+        el.classList.remove("show");
+        fitSprite();
+      }, ms);
+    }
     requestAnimationFrame(() => {
       mountSticker();
       fitSprite();
@@ -1107,14 +1118,14 @@
     if (!force && CONFIG.bubbleMode === "talk") return;
     const text = chooseLine(lastData);
     infoLine.textContent = text;
-    showPanel(infoBubble, panelMs());
+    showPanel(infoBubble, Infinity);
   }
 
   function presentTalk(text, face, mood) {
     const line = text || pick(pick(GROUPS).lines);
     talkLine.textContent = line;
     if (face) setFace(face, 2600);
-    showPanel(talkBubble, panelMs());
+    showPanel(talkBubble, Infinity);
     if (mood) showSticker(mood);
   }
 
@@ -1388,13 +1399,20 @@
     rotateTimer = setInterval(() => {
       if (CONFIG.bubbleMode !== "rotate") return;
       if (!lastData || !lastData.ok) return;
+      if (activeBubble === taskBubble) return;
       rotateTick += 1;
-      if (rotateTick % 4 === 0) {
-        const greet = hourLine();
-        presentTalk(greet.t, greet.face, greet.mood);
-      } else if (activeBubble === infoBubble) saySomething();
-      else if (activeBubble === taskBubble) return;
-      else presentInfo(true);
+      // 常驻气泡只在当前面板里换文案，不切换面板，整块不会一闪一闪
+      if (activeBubble === talkBubble) {
+        if (rotateTick % 4 === 0) {
+          const greet = hourLine();
+          presentTalk(greet.t, greet.face, greet.mood);
+        } else {
+          const g = pick(GROUPS);
+          presentTalk(pick(g.lines), g.face, g.mood);
+        }
+      } else {
+        presentInfo(true);
+      }
     }, gap);
   }
 
