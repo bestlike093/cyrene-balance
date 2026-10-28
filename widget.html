@@ -892,10 +892,15 @@
   let lastBubbleWindowWidth = 0;
 
   function applySizes() {
-    document.documentElement.style.setProperty("--fs", String(CONFIG.bubbleFont));
-    document.documentElement.style.setProperty("--talk-fs", CONFIG.talkFont + "px");
-    document.documentElement.style.setProperty("--sticker-size", CONFIG.stickerSize + "px");
-    document.documentElement.style.setProperty("--task-fs", Number(CONFIG.taskFont) + "px");
+    // 字号一旦是 0，气泡会只剩 padding、台词整段看不见，这里兜住下限
+    const bubbleFs = Math.max(0.6, Math.min(3, Number(CONFIG.bubbleFont) || 1));
+    const talkFs = Math.max(9, Math.min(40, Number(CONFIG.talkFont) || 12));
+    const taskFs = Math.max(9, Math.min(40, Number(CONFIG.taskFont) || 12));
+    const stickerSize = Math.max(16, Math.min(120, Number(CONFIG.stickerSize) || 42));
+    document.documentElement.style.setProperty("--fs", String(bubbleFs));
+    document.documentElement.style.setProperty("--talk-fs", talkFs + "px");
+    document.documentElement.style.setProperty("--sticker-size", stickerSize + "px");
+    document.documentElement.style.setProperty("--task-fs", taskFs + "px");
     document.documentElement.style.setProperty("--task-list-h", Number(CONFIG.taskListHeight) + "px");
 
     const bubbleW = Math.max(0, Math.min(1400, Number(CONFIG.bubbleWidth) || 0));
