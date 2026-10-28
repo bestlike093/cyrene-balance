@@ -836,9 +836,7 @@ function recenterPet(options) {
     win.setPosition(Math.round(finalX), Math.round(finalY));
     if (!win.isVisible()) win.showInactive();
     try { win.moveTop(); } catch { /* 忽略 */ }
-    if (!followMode) {
-      try { win.setAlwaysOnTop(true, "floating"); } catch { /* 忽略 */ }
-    }
+    try { win.setAlwaysOnTop(true, "floating"); } catch { /* 忽略 */ }
     if (opts.save !== false && !followMode) void saveWidgetPosition();
     petLog("归位 -> " + Math.round(finalX) + "," + Math.round(finalY));
     return true;
@@ -1204,7 +1202,7 @@ async function openWidget() {
     maximizable: false,
     minimizable: false,
     fullscreenable: false,
-    alwaysOnTop: !followMode,
+    alwaysOnTop: true,
     skipTaskbar: true,
     hasShadow: false,
     show: false,
@@ -1217,9 +1215,15 @@ async function openWidget() {
       backgroundThrottling: false,
     },
   });
-  if (!followMode) {
-    try { win.setAlwaysOnTop(true, "floating"); } catch { /* 忽略 */ }
-  }
+  try { win.setAlwaysOnTop(true, "floating"); } catch { /* 忽略 */ }
+  // 常驻置顶：别的程序把自己提到 TOPMOST 之上时，定时把桌宠提回最前
+  const keepTopTimer = setInterval(() => {
+    if (!win || win.isDestroyed()) return;
+    try {
+      if (!win.isAlwaysOnTop()) win.setAlwaysOnTop(true, "floating");
+      win.moveTop();
+    } catch { /* 忽略 */ }
+  }, 2000);
   win.loadFile(path.join(__dirname, "widget.html"));
   win.webContents.on("did-finish-load", () => {
     pushPetTodo();
@@ -1260,6 +1264,7 @@ async function openWidget() {
   });
   win.on("closed", () => {
     if (moveTimer) clearTimeout(moveTimer);
+    if (keepTopTimer) clearInterval(keepTopTimer);
     win = null;
   });
 }
