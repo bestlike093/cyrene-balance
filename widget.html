@@ -24,9 +24,9 @@
   }
   #shell {
     width: 203px;
-    /* 窗口尺寸已经按 scale 缩过一次，这里再取 100% 就成了二次缩放，
-       缩小后内容会被压到窗口顶部之外，气泡整块被裁掉 */
-    height: calc(100% / var(--scale, 1));
+    /* 高度由 fitSprite 按布局尺寸写成 px；窗口再按 scale 缩，
+       用百分比的话窗口一缩内容会跟着再缩一次 */
+    height: 100%;
     transform: scale(var(--scale));
     transform-origin: top left;
     position: relative;
@@ -1002,6 +1002,8 @@
       const bubbleH = shown ? shown.offsetHeight + 8 : 0;
       // 顶部留 18px：气泡阴影向上扩散约 11px，只留 4px 会被窗口边缘裁掉一截
       const h = Math.max(250, Math.min(760, Math.round(18 + bubbleH + 6 + 180 + bottom + 6)));
+      // 布局高度写死成 px，窗口按 scale 缩时内容不会跟着二次缩放
+      shell.style.height = h + "px";
       if (Math.abs(h - lastHeight) < 6) return;
       lastHeight = h;
       ipcRenderer.invoke(CH + "set-widget-height", h).catch(() => {});
