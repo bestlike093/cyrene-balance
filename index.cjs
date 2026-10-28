@@ -137,7 +137,8 @@ async function getSettings() {
       bubbleMode: ["rotate", "info", "talk", "today", "balance"].includes(raw.bubbleMode)
         ? raw.bubbleMode
         : "rotate",
-      bubblePlace: ["top", "middle", "bottom"].includes(raw.bubblePlace) ? raw.bubblePlace : "top",
+      // 气泡固定在立绘头顶，历史设置里的 middle / bottom 不再生效
+      bubblePlace: "top",
       bubbleFont: [0.8, 1, 1.3, 1.6].includes(Number(raw.bubbleFont)) ? Number(raw.bubbleFont) : 1,
       talkFont: [10, 12, 14, 16, 18].includes(Number(raw.talkFont)) ? Number(raw.talkFont) : 12,
       rotateSec:
