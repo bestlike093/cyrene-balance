@@ -1213,11 +1213,15 @@ function setWidgetHeight(cssHeight) {
   const css = Math.max(200, Math.min(780, Number(cssHeight) || WIDGET_HEIGHT));
   widgetHeightCache = css;
   const height = Math.round(css * scale);
+  // 宽度也按缓存重算：高度变化时不再原样继承可能已经跑偏的 bounds.width
+  const width = Math.round(widgetWidthCache * scale);
   const bounds = win.getBounds();
-  if (Math.abs(bounds.height - height) < 2) return;
+  if (Math.abs(bounds.height - height) < 2 && bounds.width === width) return;
+  // 底部 + 右边缘同时作锚，只改尺寸不动画面
   const bottom = bounds.y + bounds.height;
+  const right = bounds.x + bounds.width;
   win.setBounds(
-    { x: bounds.x, y: Math.round(bottom - height), width: bounds.width, height },
+    { x: Math.round(right - width), y: Math.round(bottom - height), width, height },
     false,
   );
   notifyWidgetViewport();
@@ -1232,7 +1236,7 @@ function setWidgetWidth(cssWidth) {
   widgetWidthCache = css;
   const width = Math.round(css * scale);
   const bounds = win.getBounds();
-  if (Math.abs(bounds.width - width) < 2) return;
+  if (bounds.width === width) return;
   const right = bounds.x + bounds.width;
   win.setBounds(
     { x: Math.round(right - width), y: bounds.y, width, height: bounds.height },

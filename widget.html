@@ -208,20 +208,21 @@
   /* ---------- 角色：静态立绘 + 呼吸律动 ---------- */
   #sprite {
     position: absolute;
-    /* 气泡变宽时窗口向左扩，立绘锚在距右 101.5px（默认 203 宽时的中心），视觉位置不动 */
-    left: calc(100% - 101.5px);
+    /* 以窗口右边缘为锚：窗口宽度被气泡撑宽或回弹时，立绘不跟着横向漂移。
+       180 宽、距右 11.5px 时，中心正好落在默认 203 宽窗口的 101.5px 处。 */
+    right: 11.5px;
     bottom: var(--sprite-bottom);
     width: 180px;
     height: 180px;
-    transform: translateX(-50%) scale(var(--sprite-scale, 1));
-    transform-origin: bottom center;
+    transform: scale(var(--sprite-scale, 1));
+    transform-origin: bottom right;
     cursor: grab;
     z-index: 2;
     transition: transform 0.34s cubic-bezier(0.34, 1.4, 0.64, 1);
   }
   #sprite:active { cursor: grabbing; }
   #sprite.pressed {
-    transform: translateX(-50%) scale(calc(var(--sprite-scale, 1) * 0.94), calc(var(--sprite-scale, 1) * 0.8));
+    transform: scale(calc(var(--sprite-scale, 1) * 0.94), calc(var(--sprite-scale, 1) * 0.8));
     transition: transform 0.07s ease;
   }
   #sprite img {

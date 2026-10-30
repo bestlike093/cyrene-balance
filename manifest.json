@@ -2,7 +2,7 @@
   "apiVersion": 1,
   "id": "cyrene-balance",
   "name": "昔涟 · 桌面桌宠",
-  "version": "10.4.4",
+  "version": "10.4.5",
   "description": "常驻桌面的唯一桌宠：余额与今日消费、提问与危险操作确认、当前任务进度都收在她身上；支持气泡轮换、气泡宽高自由设置、九套差分立绘、四手势与头顶状态面板",
   "author": "昔涟",
   "entry": "index.cjs",
